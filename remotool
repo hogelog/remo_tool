@@ -1,44 +1,60 @@
 #!/usr/bin/env ruby
 
+require 'optparse'
 require "net/http"
 require "json"
 require "pp"
 
-REMO_TOKEN = ENV.fetch("REMO_TOKEN")
+class RemoTool
+  REMO_TOKEN = ENV.fetch("REMO_TOKEN")
 
-APPS = {
-  tv: ENV.fetch("REMO_TV_ID"),
-}
+  APPS = {
+    tv: ENV.fetch("REMO_TV_ID"),
+  }
 
-def remo_post(path, args)
-  uri = URI.parse("https://api.nature.global#{path}")
-  res = Net::HTTP.start(uri.host, uri.port, use_ssl: true) do |http|
-    req = Net::HTTP::Post.new(uri.path)
-    req["Authorization"] = "Bearer #{REMO_TOKEN}"
-    req.form_data = args
-    http.request(req)
+  def cli(argv_orig)
+    argv = argv_orig.dup
+    subcmd = argv.shift
+
+    case subcmd
+    when "tv-src"
+      tv_input_src(argv.first.to_i)
+    when "tv-digital"
+      tv_button("input-terrestrial")
+    end
   end
-  pp res
-  res
+
+  def remo_post(path, args)
+    puts "#{path}: #{args.pretty_inspect}"
+    uri = URI.parse("https://api.nature.global#{path}")
+    res = Net::HTTP.start(uri.host, uri.port, use_ssl: true) do |http|
+      req = Net::HTTP::Post.new(uri.path)
+      req["Authorization"] = "Bearer #{REMO_TOKEN}"
+      req.form_data = args
+      http.request(req)
+    end
+    pp res
+    res
+  end
+
+  def tv_button(name, skip_sleep: false)
+    remo_post("/1/appliances/#{APPS[:tv]}/tv", button: name)
+    sleep 0.4 if skip_sleep
+  end
+
+  def tv_input_src(src)
+    seq = case src
+    when 1
+      %w(select-input-src up up up down ok)
+    when 2
+      %w(select-input-src up up up down down ok)
+    when 3
+      %w(select-input-src up up up down down down ok)
+    end
+    seq.each do |name|
+      tv_button(name)
+    end
+  end
 end
 
-def tv_button(name, skip_sleep: false)
-  remo_post("/1/appliances/#{APPS[:tv]}/tv", button: name)
-  sleep 0.4 if skip_sleep
-end
-
-def tv_input_src(src)
-  seq = case src
-  when 1
-    %w(select-input-src up up up down ok)
-  when 2
-    %w(select-input-src up up up down down ok)
-  when 3
-    %w(select-input-src up up up down down down ok)
-  end
-  seq.each do |name|
-    tv_button(name)
-  end
-end
-
-tv_input_src(2)
+RemoTool.new.cli(ARGV)
