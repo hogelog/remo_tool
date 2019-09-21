@@ -1,0 +1,5 @@
+#!/usr/bin/env ruby
+
+require "remo_tool"
+
+RemoTool.new.cli(ARGV)

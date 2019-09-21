@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby
+require "remo_tool/version"
 
 require 'optparse'
 require "net/http"
@@ -6,11 +6,7 @@ require "json"
 require "pp"
 
 class RemoTool
-  REMO_TOKEN = ENV.fetch("REMO_TOKEN")
-
-  APPS = {
-    tv: ENV.fetch("REMO_TV_ID"),
-  }
+  class Error < StandardError; end
 
   def cli(argv_orig)
     argv = argv_orig.dup
@@ -24,12 +20,20 @@ class RemoTool
     end
   end
 
+  def initialize
+    @remo_token = ENV.fetch("REMO_TOKEN")
+
+    @apps = {
+      tv: ENV.fetch("REMO_TV_ID"),
+    }
+  end
+
   def remo_post(path, args)
     puts "#{path}: #{args.pretty_inspect}"
     uri = URI.parse("https://api.nature.global#{path}")
     res = Net::HTTP.start(uri.host, uri.port, use_ssl: true) do |http|
       req = Net::HTTP::Post.new(uri.path)
-      req["Authorization"] = "Bearer #{REMO_TOKEN}"
+      req["Authorization"] = "Bearer #{@remo_token}"
       req.form_data = args
       http.request(req)
     end
@@ -38,7 +42,7 @@ class RemoTool
   end
 
   def tv_button(name, skip_sleep: false)
-    remo_post("/1/appliances/#{APPS[:tv]}/tv", button: name)
+    remo_post("/1/appliances/#{@apps[:tv]}/tv", button: name)
     sleep 0.4 if skip_sleep
   end
 
@@ -56,5 +60,3 @@ class RemoTool
     end
   end
 end
-
-RemoTool.new.cli(ARGV)
